@@ -1,6 +1,9 @@
+'use client';
+
 import Link from 'next/link';
 import type { Order, OrderStatus } from '@/types';
-import { formatMoney, formatDate } from '@/lib/formatters';
+import { formatDate } from '@/lib/formatters';
+import { useFormatMoney } from '@/components/PreferencesProvider';
 import { Badge } from '@/components/ui/Badge';
 
 const STATUS_VARIANT: Record<OrderStatus, 'success' | 'info' | 'default' | 'danger' | 'warning'> = {
@@ -15,6 +18,8 @@ interface OrderTableProps {
 }
 
 export function OrderTable({ orders }: OrderTableProps) {
+  const formatMoney = useFormatMoney();
+
   if (orders.length === 0) {
     return (
       <div className="text-center py-12 text-gray-400">

@@ -1,30 +1,66 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import { listings as listingsApi } from '@/lib/api';
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { formatMoney, formatDate } from '@/lib/formatters';
-import { notFound } from 'next/navigation';
+import { formatDate } from '@/lib/formatters';
+import { useFormatMoney } from '@/components/PreferencesProvider';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowLeft, ExternalLink, Package } from 'lucide-react';
-import type { ListingStatus } from '@/types';
+import type { Listing, ListingStatus } from '@/types';
 
-export const dynamic = 'force-dynamic';
-
-const STATUS_VARIANT: Record<ListingStatus, 'success' | 'danger' | 'warning'> = {
+const STATUS_VARIANT: Record<ListingStatus, 'success' | 'danger' | 'warning' | 'default'> = {
   ACTIVE:       'success',
   ENDED:        'danger',
   OUT_OF_STOCK: 'warning',
+  DRAFT:        'default',
 };
 
-interface Props { params: { id: string } }
+export default function ListingDetailPage() {
+  const params      = useParams();
+  const id          = params.id as string;
+  const router      = useRouter();
+  const formatMoney = useFormatMoney();
 
-export default async function ListingDetailPage({ params }: Props) {
-  let listing;
-  try {
-    const res = await listingsApi.get(params.id);
-    listing = res.data;
-  } catch {
-    notFound();
+  const [listing, setListing] = useState<Listing | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!id) return;
+    listingsApi.get(id)
+      .then((res) => {
+        const l = res.data as unknown as Listing;
+        if (l.status === 'DRAFT') {
+          router.replace(`/listings/${id}/edit`);
+          return;
+        }
+        setListing(l);
+      })
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Failed to load listing'))
+      .finally(() => setLoading(false));
+  }, [id, router]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-24 text-gray-400">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#0f3460] border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (error || !listing) {
+    return (
+      <div className="space-y-4">
+        <Link href="/listings" className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-gray-600">
+          <ArrowLeft className="h-4 w-4" /> Back to listings
+        </Link>
+        <p className="text-red-500">{error ?? 'Listing not found.'}</p>
+      </div>
+    );
   }
 
   return (
@@ -83,9 +119,13 @@ export default async function ListingDetailPage({ params }: Props) {
                 <span className="text-gray-500">Condition</span>
                 <span>{listing.condition || '—'}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex flex-col gap-0.5">
                 <span className="text-gray-500">Category</span>
-                <span>{listing.category.name || '—'}</span>
+                <span className="text-right text-xs leading-snug">
+                  {listing.category.name
+                    ? listing.category.name.split(':').join(' › ')
+                    : '—'}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Listed</span>

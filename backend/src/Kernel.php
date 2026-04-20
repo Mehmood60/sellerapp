@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App;
 
+use App\Controllers\AiController;
 use App\Controllers\AuthController;
 use App\Controllers\DashboardController;
 use App\Controllers\ListingController;
@@ -16,12 +17,14 @@ use App\eBay\EbayClient;
 use App\eBay\EbayClientInterface;
 use App\PDF\InvoicePdf;
 use App\PDF\SalesReportPdf;
+use App\Services\AiListingService;
 use App\Services\AnalyticsService;
 use App\Services\EbayAuthService;
 use App\Services\EbaySyncService;
 use App\Services\InvoiceService;
 use App\Services\ListingService;
 use App\Services\OrderService;
+use App\Services\ProductScraperService;
 use App\Services\ProfileService;
 use App\Services\SalesReportService;
 use App\Services\UserAuthService;
@@ -61,14 +64,16 @@ class Kernel
         $userAuthService    = new UserAuthService($userRepo, $sessionRepo);
         $profileService     = new ProfileService($profileRepo);
         $ebayAuthService    = new EbayAuthService($tokenRepo, $ebayClient);
-        $ebaySyncService    = new EbaySyncService($ebayClient, $orderRepo, $listingRepo, $this->dataDir);
+        $ebaySyncService    = new EbaySyncService($ebayClient, $orderRepo, $listingRepo, $tokenRepo, $this->dataDir);
         $orderService       = new OrderService($orderRepo);
-        $listingService     = new ListingService($listingRepo);
+        $listingService     = new ListingService($listingRepo, $ebayClient);
         $analyticsService   = new AnalyticsService($orderRepo, $listingRepo);
         $invoicePdf         = new InvoicePdf($this->templateDir);
         $salesReportPdf     = new SalesReportPdf($this->templateDir);
         $invoiceService     = new InvoiceService($orderRepo, $invoicePdf, $profileService);
         $salesReportService = new SalesReportService($analyticsService, $salesReportPdf);
+        $scraperService     = new ProductScraperService();
+        $aiListingService   = new AiListingService();
 
         // ── Controllers ──────────────────────────────────────────────────────
         $userController      = new UserController($userAuthService, $profileService);
@@ -79,6 +84,7 @@ class Kernel
         $dashboardController = new DashboardController($analyticsService);
         $reportController    = new ReportController($salesReportService);
         $syncController      = new SyncController($ebaySyncService);
+        $aiController        = new AiController($scraperService, $aiListingService);
 
         // ── Router ───────────────────────────────────────────────────────────
         $this->router = new Router();
@@ -110,8 +116,18 @@ class Kernel
         $this->router->get('/api/orders/{id}/invoice',   [$orderController, 'invoice']);
 
         // Listings
-        $this->router->get('/api/listings',              [$listingController, 'index']);
-        $this->router->get('/api/listings/{id}',         [$listingController, 'show']);
+        $this->router->get('/api/listings',                      [$listingController, 'index']);
+        $this->router->post('/api/listings',                     [$listingController, 'create']);
+        $this->router->get('/api/listings/category-suggest',     [$listingController, 'suggestCategories']);
+        $this->router->get('/api/listings/{id}',                 [$listingController, 'show']);
+        $this->router->put('/api/listings/{id}',                 [$listingController, 'update']);
+        $this->router->delete('/api/listings/{id}',              [$listingController, 'destroy']);
+        $this->router->post('/api/listings/{id}/publish',        [$listingController, 'publish']);
+        $this->router->post('/api/listings/{id}/revise',         [$listingController, 'revise']);
+
+        // AI listing analysis + translation
+        $this->router->post('/api/ai/analyze',           [$aiController, 'analyze']);
+        $this->router->post('/api/ai/translate',         [$aiController, 'translate']);
 
         // Dashboard
         $this->router->get('/api/dashboard',             [$dashboardController, 'index']);

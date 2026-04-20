@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import AuthProvider from '@/components/AuthProvider';
 import AppShell from '@/components/AppShell';
+import { PreferencesProvider } from '@/components/PreferencesProvider';
 
 export const metadata: Metadata = {
   title: 'eBay Seller Platform',
@@ -12,9 +13,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className="bg-gray-50 text-gray-900 antialiased">
-        <AuthProvider>
-          <AppShell>{children}</AppShell>
-        </AuthProvider>
+        <PreferencesProvider>
+          <AuthProvider>
+            <AppShell>{children}</AppShell>
+          </AuthProvider>
+        </PreferencesProvider>
       </body>
     </html>
   );

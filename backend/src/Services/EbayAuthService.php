@@ -53,6 +53,12 @@ class EbayAuthService
     {
         $response = $this->ebayClient->exchangeCodeForTokens($code);
         $tokens   = $this->ebayClient->normalizeTokenResponse($response);
+
+        $username = $this->ebayClient->fetchSellerUsername($tokens['access_token']);
+        if (!empty($username)) {
+            $tokens['seller_username'] = $username;
+        }
+
         $this->tokenRepo->saveTokens($tokens);
 
         return [

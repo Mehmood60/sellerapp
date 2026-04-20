@@ -6,11 +6,13 @@ import { auth, sync } from '@/lib/api';
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { formatDateTime, relativeTime } from '@/lib/formatters';
+import { usePreferences, CURRENCY_OPTIONS, type Currency } from '@/components/PreferencesProvider';
 import type { AuthStatus, SyncState } from '@/types';
 import { Link2, Link2Off } from 'lucide-react';
 
 export default function SettingsPage() {
   const params = useSearchParams();
+  const { currency, setCurrency } = usePreferences();
   const [authStatus, setAuthStatus]   = useState<AuthStatus | null>(null);
   const [syncState, setSyncState]     = useState<SyncState | null>(null);
   const [loading, setLoading]         = useState(true);
@@ -167,6 +169,28 @@ export default function SettingsPage() {
           ) : (
             <p className="text-gray-400">Sync data unavailable.</p>
           )}
+        </CardBody>
+      </Card>
+
+      {/* Display Preferences */}
+      <Card>
+        <CardHeader><h2 className="font-semibold">Display Preferences</h2></CardHeader>
+        <CardBody>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">Currency</p>
+              <p className="text-xs text-gray-500 mt-0.5">Symbol used for all prices in the app</p>
+            </div>
+            <select
+              value={currency}
+              onChange={(e) => setCurrency(e.target.value as Currency)}
+              className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+            >
+              {CURRENCY_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
         </CardBody>
       </Card>
 

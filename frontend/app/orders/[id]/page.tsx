@@ -1,14 +1,16 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
 import { orders as ordersApi } from '@/lib/api';
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { formatMoney, formatDate, formatDateTime } from '@/lib/formatters';
-import { notFound } from 'next/navigation';
+import { useFormatMoney } from '@/components/PreferencesProvider';
+import { formatDate, formatDateTime } from '@/lib/formatters';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
-import type { OrderStatus } from '@/types';
+import type { Order, OrderStatus } from '@/types';
 import InvoiceDownloadButton from './InvoiceDownloadButton';
-
-export const dynamic = 'force-dynamic';
 
 const STATUS_VARIANT: Record<OrderStatus, 'success' | 'info' | 'danger' | 'warning'> = {
   PAID:      'info',
@@ -17,20 +19,43 @@ const STATUS_VARIANT: Record<OrderStatus, 'success' | 'info' | 'danger' | 'warni
   CANCELLED: 'danger',
 };
 
-interface Props {
-  params: { id: string };
-}
+export default function OrderDetailPage() {
+  const params = useParams();
+  const id     = params.id as string;
+  const formatMoney = useFormatMoney();
 
-export default async function OrderDetailPage({ params }: Props) {
-  let order;
-  try {
-    const res = await ordersApi.get(params.id);
-    order = res.data;
-  } catch {
-    notFound();
+  const [order, setOrder]   = useState<Order | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]   = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!id) return;
+    ordersApi.get(id)
+      .then((res) => setOrder(res.data as unknown as Order))
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Failed to load order'))
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-24 text-gray-400">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#0f3460] border-t-transparent" />
+      </div>
+    );
   }
 
-  const addr = order.buyer.shipping_address;
+  if (error || !order) {
+    return (
+      <div className="space-y-4">
+        <Link href="/orders" className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-gray-600">
+          <ArrowLeft className="h-4 w-4" /> Back to orders
+        </Link>
+        <p className="text-red-500">{error ?? 'Order not found.'}</p>
+      </div>
+    );
+  }
+
+  const addr       = order.buyer.shipping_address;
   const invoiceUrl = ordersApi.invoiceUrl(order.id);
 
   return (

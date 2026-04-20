@@ -82,6 +82,15 @@ class TokenRepository
         return $tokens !== null && !empty($tokens['access_token']);
     }
 
+    public function getSellerUsername(): string
+    {
+        if (!file_exists($this->tokenFile)) {
+            return '';
+        }
+        $data = json_decode((string)file_get_contents($this->tokenFile), true);
+        return is_array($data) ? ($data['seller_username'] ?? '') : '';
+    }
+
     private function encrypt(string $value): string
     {
         if (empty($value)) {

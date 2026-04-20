@@ -4,11 +4,13 @@ import { useState } from 'react';
 import { reports as reportsApi } from '@/lib/api';
 import { SalesChart } from '@/components/SalesChart';
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
-import { formatMoney, firstOfMonthISO, todayISO } from '@/lib/formatters';
+import { firstOfMonthISO, todayISO } from '@/lib/formatters';
+import { useFormatMoney } from '@/components/PreferencesProvider';
 import type { SalesReport } from '@/types';
 import { FileDown, BarChart2 } from 'lucide-react';
 
 export default function ReportsPage() {
+  const formatMoney = useFormatMoney();
   const [from, setFrom]           = useState(firstOfMonthISO());
   const [to, setTo]               = useState(todayISO());
   const [report, setReport]       = useState<SalesReport | null>(null);

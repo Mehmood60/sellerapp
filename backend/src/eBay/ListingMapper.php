@@ -41,6 +41,36 @@ class ListingMapper
     }
 
     /**
+     * Map a Trading API GetMyeBaySelling item to our internal Listing model.
+     */
+    public function mapTradingApiItem(array $item): array
+    {
+        return [
+            'id'                  => $item['itemId'],
+            'ebay_item_id'        => $item['itemId'],
+            'title'               => $item['title'],
+            'sku'                 => $item['sku'],
+            'status'              => strtoupper($item['listingStatus']) === 'ACTIVE' ? 'ACTIVE' : strtoupper($item['listingStatus']),
+            'category'            => [
+                'ebay_category_id' => $item['categoryId'] ?? '',
+                'name'             => $item['categoryName'] ?? '',
+            ],
+            'price'               => $item['price'],
+            'quantity'            => [
+                'available' => $item['quantity'],
+                'sold'      => $item['quantitySold'],
+            ],
+            'images'              => $item['pictureUrls'] ?? [],
+            'condition'           => $item['condition'] ?? '',
+            'description_snippet' => '',
+            'listing_url'         => $item['viewItemUrl'],
+            'listed_at'           => $item['startTime'] ?: date('c'),
+            'ends_at'             => $item['endTime'] ?? '',
+            'synced_at'           => date('c'),
+        ];
+    }
+
+    /**
      * Map an eBay Browse/Trading API item summary to our internal Listing model.
      * Used when syncing via the Sell Listing API or active listings feed.
      */

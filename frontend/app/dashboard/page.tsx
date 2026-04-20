@@ -1,22 +1,39 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import { dashboard } from '@/lib/api';
 import { SalesChart } from '@/components/SalesChart';
 import { StatCard } from '@/components/ui/StatCard';
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
-import { formatMoney } from '@/lib/formatters';
+import { useFormatMoney } from '@/components/PreferencesProvider';
 import { TrendingUp, ShoppingCart, DollarSign } from 'lucide-react';
+import type { DashboardData } from '@/types';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export default function DashboardPage() {
+  const formatMoney = useFormatMoney();
+  const [data, setData]     = useState<DashboardData | null>(null);
+  const [error, setError]   = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-export default async function DashboardPage() {
-  let data;
-  try {
-    const res = await dashboard.get();
-    data = res.data;
-  } catch {
+  useEffect(() => {
+    dashboard.get()
+      .then((res) => setData(res.data as unknown as DashboardData))
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Failed to load dashboard'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-24 text-gray-400">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#0f3460] border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (error || !data) {
     return (
       <div className="text-red-500 p-6">
-        Failed to load dashboard. Make sure the PHP backend is running at {process.env.NEXT_PUBLIC_API_BASE_URL}.
+        Failed to load dashboard. Make sure the PHP backend is running.
       </div>
     );
   }
@@ -25,7 +42,6 @@ export default async function DashboardPage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
 
-      {/* Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatCard
           label="Revenue (30 days)"
@@ -44,7 +60,6 @@ export default async function DashboardPage() {
         />
       </div>
 
-      {/* Revenue Chart */}
       <Card>
         <CardHeader>
           <h2 className="font-semibold text-gray-800">Revenue — Last 30 Days</h2>
@@ -54,7 +69,6 @@ export default async function DashboardPage() {
         </CardBody>
       </Card>
 
-      {/* Top Listings */}
       <Card>
         <CardHeader>
           <h2 className="font-semibold text-gray-800">Top Listings</h2>

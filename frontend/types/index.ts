@@ -82,7 +82,7 @@ export interface ListingQuantity {
   sold: number;
 }
 
-export type ListingStatus = 'ACTIVE' | 'ENDED' | 'OUT_OF_STOCK';
+export type ListingStatus = 'ACTIVE' | 'ENDED' | 'OUT_OF_STOCK' | 'DRAFT';
 
 export interface Listing {
   id: string;
@@ -209,6 +209,47 @@ export interface Profile {
   store: StoreInfo;
   created_at: string;
   updated_at: string;
+}
+
+// ─── AI Listing Analysis ────────────────────────────────────────────────────
+
+export type ShippingOrigin = 'DE' | 'CN' | 'UNKNOWN';
+
+export interface AiShipping {
+  type: 'free' | 'paid';
+  cost: string;
+  service: string;
+  processing_days_min: number;
+  processing_days_max: number;
+  delivery_days_min: number;
+  delivery_days_max: number;
+}
+
+export interface AiSuggestion {
+  title: string;
+  condition: string;
+  description: string;
+  price: Money;
+  shipping_origin: ShippingOrigin;
+  shipping: AiShipping;
+  category_suggestion: string;
+  keywords: string[];
+  item_specifics?: Record<string, string>;
+}
+
+export interface ScrapedProduct {
+  url: string;
+  title: string;
+  description: string;
+  images: string[];
+  price: Money;
+  origin: ShippingOrigin;
+  text_snippet: string;
+}
+
+export interface AiAnalysisResult {
+  raw_product: ScrapedProduct;
+  ai_suggestion: AiSuggestion;
 }
 
 // ─── API Response wrapper ───────────────────────────────────────────────────

@@ -11,6 +11,30 @@ class ListingRepository extends JsonRepository
         parent::__construct($dataDir, 'listings');
     }
 
+    public function findByEbayItemId(string $ebayItemId): ?array
+    {
+        foreach ($this->readIndex() as $entry) {
+            if (isset($entry['ebay_item_id']) && (string)$entry['ebay_item_id'] === $ebayItemId) {
+                return $this->find((string)$entry['id']);
+            }
+        }
+        return null;
+    }
+
+    public function findAllActive(): array
+    {
+        $result = [];
+        foreach ($this->readIndex() as $entry) {
+            if (($entry['status'] ?? '') === 'ACTIVE') {
+                $entity = $this->find((string)$entry['id']);
+                if ($entity !== null) {
+                    $result[] = $entity;
+                }
+            }
+        }
+        return $result;
+    }
+
     protected function buildIndexEntry(array $entity): array
     {
         return [

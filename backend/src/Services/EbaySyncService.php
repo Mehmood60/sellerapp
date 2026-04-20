@@ -9,6 +9,7 @@ use App\eBay\OrderMapper;
 use App\eBay\ListingMapper;
 use App\Storage\Json\OrderRepository;
 use App\Storage\Json\ListingRepository;
+use App\Storage\Json\TokenRepository;
 
 class EbaySyncService
 {
@@ -18,6 +19,7 @@ class EbaySyncService
         private readonly EbayClientInterface $ebayClient,
         private readonly OrderRepository $orderRepo,
         private readonly ListingRepository $listingRepo,
+        private readonly TokenRepository $tokenRepo,
         string $dataDir,
     ) {
         $this->syncStateFile = rtrim($dataDir, '/\\') . DIRECTORY_SEPARATOR . 'sync_state.json';
@@ -72,41 +74,80 @@ class EbaySyncService
 
     public function syncListings(): array
     {
-        $state  = $this->getSyncState();
-        $synced = 0;
-        $limit  = 100;
-        $offset = 0;
-        $mapper = new ListingMapper();
-        $total  = 0;
+        $tokens = $this->tokenRepo->getTokens();
+        if ($tokens === null) {
+            return ['error' => 'eBay account not connected. Please connect in Settings.', 'synced' => 0];
+        }
+
+        $state         = $this->getSyncState();
+        $synced        = 0;
+        $page          = 1;
+        $perPage       = 200;
+        $mapper        = new ListingMapper();
+        $total         = 0;
+        $pages         = 1;
+        $syncedEbayIds = [];
 
         do {
             try {
-                $response = $this->ebayClient->get('/sell/inventory/v1/inventory_item', [
-                    'limit'  => $limit,
-                    'offset' => $offset,
-                ]);
+                $response = $this->ebayClient->getMyActiveSellListings($page, $perPage);
             } catch (\Throwable $e) {
                 return ['error' => $e->getMessage(), 'synced' => $synced];
             }
 
-            $items = $response['inventoryItems'] ?? [];
+            $items = $response['items'] ?? [];
             $total = $response['total'] ?? 0;
+            $pages = $response['pages'] ?? 1;
 
             foreach ($items as $item) {
-                $itemId = $item['sku'] ?? '';
-                if (empty($itemId)) {
+                if (empty($item['itemId'])) {
                     continue;
                 }
 
-                $mapped = $mapper->mapInventoryItem($item, $itemId);
+                try {
+                    $details = $this->ebayClient->getItemDetails($item['itemId']);
+                    if (!empty($details)) {
+                        $item = array_merge($item, $details);
+                    }
+                } catch (\Throwable) {
+                    // Enrichment is non-fatal
+                }
+
+                $mapped     = $mapper->mapTradingApiItem($item);
+                $ebayItemId = $item['itemId'];
+                $syncedEbayIds[] = $ebayItemId;
+
+                // Dedup: if a local entry already has this ebay_item_id (e.g. draft_xxxx
+                // after publish), merge into that entry instead of creating a second one.
+                $existing = $this->listingRepo->findByEbayItemId($ebayItemId);
+                if ($existing !== null && $existing['id'] !== $ebayItemId) {
+                    $mapped['id']             = $existing['id'];
+                    $mapped['item_specifics'] = $existing['item_specifics'] ?? [];
+                    $mapped['keywords']       = $existing['keywords']       ?? [];
+                    $mapped['description']    = $existing['description']    ?? '';
+                    $mapped['source_url']     = $existing['source_url']     ?? '';
+                    $mapped['shipping']       = $existing['shipping']       ?? [];
+                    // Remove stale file keyed by eBay item id if a previous sync created it
+                    $this->listingRepo->delete($ebayItemId);
+                }
+
                 $this->listingRepo->save($mapped);
                 $synced++;
             }
 
-            $offset += $limit;
-        } while ($offset < $total && count($items) === $limit);
+            $page++;
+        } while ($page <= $pages);
 
-        // Update sync state
+        // Mark local ACTIVE listings that are no longer on eBay as ENDED (e.g. deleted on eBay)
+        if (!empty($syncedEbayIds)) {
+            foreach ($this->listingRepo->findAllActive() as $localListing) {
+                $localEbayId = $localListing['ebay_item_id'] ?? '';
+                if ($localEbayId !== '' && !in_array($localEbayId, $syncedEbayIds, true)) {
+                    $this->listingRepo->save(array_merge($localListing, ['status' => 'ENDED']));
+                }
+            }
+        }
+
         $state['listings']['last_synced_at'] = date('c');
         $state['listings']['total_synced']   = ($state['listings']['total_synced'] ?? 0) + $synced;
         $this->saveSyncState($state);

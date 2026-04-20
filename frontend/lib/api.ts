@@ -1,4 +1,5 @@
 import type {
+  AiAnalysisResult,
   ApiResponse,
   Order,
   Listing,
@@ -131,6 +132,24 @@ export const listings = {
 
   get: (id: string): Promise<ApiResponse<Listing>> =>
     apiFetch(`/api/listings/${id}`),
+
+  createDraft: (data: Record<string, unknown>): Promise<ApiResponse<Listing>> =>
+    apiFetch('/api/listings', { method: 'POST', body: JSON.stringify(data) }),
+
+  updateDraft: (id: string, data: Record<string, unknown>): Promise<ApiResponse<Listing>> =>
+    apiFetch(`/api/listings/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+
+  deleteDraft: (id: string): Promise<ApiResponse<{ deleted: boolean }>> =>
+    apiFetch(`/api/listings/${id}`, { method: 'DELETE' }),
+
+  publish: (id: string): Promise<ApiResponse<Listing>> =>
+    apiFetch(`/api/listings/${id}/publish`, { method: 'POST' }),
+
+  revise: (id: string, data: Record<string, unknown>): Promise<ApiResponse<Listing>> =>
+    apiFetch(`/api/listings/${id}/revise`, { method: 'POST', body: JSON.stringify(data) }),
+
+  suggestCategories: (q: string): Promise<ApiResponse<Array<{ id: string; name: string; percent: number }>>> =>
+    apiFetch(`/api/listings/category-suggest?q=${encodeURIComponent(q)}`),
 };
 
 // ─── Dashboard ───────────────────────────────────────────────────────────────
@@ -168,6 +187,22 @@ export const userAuth = {
 
   me: (): Promise<ApiResponse<User>> =>
     apiFetch('/api/auth/me'),
+};
+
+// ─── AI Listing Analysis ─────────────────────────────────────────────────────
+
+export const ai = {
+  analyze: (url: string): Promise<ApiResponse<AiAnalysisResult>> =>
+    apiFetch('/api/ai/analyze', {
+      method: 'POST',
+      body: JSON.stringify({ url }),
+    }),
+
+  translate: (title: string, description: string): Promise<ApiResponse<{ title: string; description: string }>> =>
+    apiFetch('/api/ai/translate', {
+      method: 'POST',
+      body: JSON.stringify({ title, description }),
+    }),
 };
 
 // ─── Profile ─────────────────────────────────────────────────────────────────

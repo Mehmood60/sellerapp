@@ -10,13 +10,10 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import type { RevenueByDay } from '@/types';
+import { usePreferences } from '@/components/PreferencesProvider';
 
 interface SalesChartProps {
   data: RevenueByDay[];
-}
-
-function formatCurrency(v: number) {
-  return '€' + v.toFixed(2);
 }
 
 function shortDate(iso: string) {
@@ -25,6 +22,10 @@ function shortDate(iso: string) {
 }
 
 export function SalesChart({ data }: SalesChartProps) {
+  const { currencySymbol } = usePreferences();
+
+  const formatCurrency = (v: number) => currencySymbol + v.toFixed(2);
+
   const chartData = data.map((d) => ({
     date:    shortDate(d.date),
     revenue: d.revenue,
@@ -50,7 +51,7 @@ export function SalesChart({ data }: SalesChartProps) {
           width={60}
         />
         <Tooltip
-          formatter={(value: number) => ['€' + value.toFixed(2), 'Revenue']}
+          formatter={(value: number) => [formatCurrency(value), 'Revenue']}
           labelStyle={{ fontWeight: 600 }}
           contentStyle={{ border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 12 }}
         />
